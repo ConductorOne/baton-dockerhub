@@ -23,10 +23,6 @@ func validateConfig(ctx context.Context, cfg *config) error {
 		return fmt.Errorf("username and password must be provided")
 	}
 
-	if len(cfg.Orgs) == 0 {
-		return fmt.Errorf("at least one organization must be provided")
-	}
-
 	return nil
 }
 

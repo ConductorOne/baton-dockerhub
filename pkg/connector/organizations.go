@@ -78,8 +78,10 @@ func (o *orgResourceType) List(ctx context.Context, _ *v2.ResourceId, pToken *pa
 	var rv []*v2.Resource
 	for _, org := range orgs {
 		// check for valid orgs and skip if not
-		if _, ok := o.orgs[org.Name]; !ok {
-			continue
+		if len(o.orgs) != 0 {
+			if _, ok := o.orgs[org.Name]; !ok {
+				continue
+			}
 		}
 
 		orgCopy := org

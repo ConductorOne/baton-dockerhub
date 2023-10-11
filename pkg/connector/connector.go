@@ -46,9 +46,12 @@ func (dh *DockerHub) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error
 // to be sure that they are valid.
 func (dh *DockerHub) Validate(ctx context.Context) (annotations.Annotations, error) {
 	// get the scope of used credentials
-	err := dh.client.GetCurrentUser(ctx)
+	_, _, err := dh.client.ListOrganizations(ctx, &dockerhub.PaginationVars{
+		Size: 1,
+		Page: "1",
+	})
 	if err != nil {
-		return nil, fmt.Errorf("dockerhub-connector: failed to get current user: %w", err)
+		return nil, fmt.Errorf("dockerhub-connector: failed to list organizations: %w", err)
 	}
 
 	return nil, nil
@@ -66,7 +69,7 @@ func New(ctx context.Context, username, password string, orgs []string) (*Docker
 		return nil, err
 	}
 
-	err = hubClient.GetCurrentUser(ctx)
+	err = hubClient.SetCurrentUser(ctx)
 	if err != nil {
 		return nil, err
 	}

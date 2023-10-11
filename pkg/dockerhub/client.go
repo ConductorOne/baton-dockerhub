@@ -83,7 +83,8 @@ type ListResponse[T any] struct {
 	Results []T `json:"results"`
 }
 
-func (c *Client) GetCurrentUser(ctx context.Context) error {
+// SetCurrentUser sets the current user for the client.
+func (c *Client) SetCurrentUser(ctx context.Context) error {
 	var response User
 
 	err := c.doRequest(
@@ -103,6 +104,7 @@ func (c *Client) GetCurrentUser(ctx context.Context) error {
 	return nil
 }
 
+// ListOrganizations return organizations for the current user.
 func (c *Client) ListOrganizations(ctx context.Context, pVars *PaginationVars) ([]Organization, string, error) {
 	var response ListResponse[Organization]
 
@@ -121,6 +123,7 @@ func (c *Client) ListOrganizations(ctx context.Context, pVars *PaginationVars) (
 	return response.Results, parsePageFromURL(response.Next), nil
 }
 
+// ListUsers return users under the provided organization.
 func (c *Client) ListUsers(ctx context.Context, orgSlug string, pVars *PaginationVars) ([]User, string, error) {
 	var response ListResponse[User]
 
@@ -139,6 +142,7 @@ func (c *Client) ListUsers(ctx context.Context, orgSlug string, pVars *Paginatio
 	return response.Results, parsePageFromURL(response.Next), nil
 }
 
+// ListTeams return teams under the provided organization.
 func (c *Client) ListTeams(ctx context.Context, orgSlug string, pVars *PaginationVars) ([]Team, string, error) {
 	var response ListResponse[Team]
 
@@ -157,6 +161,7 @@ func (c *Client) ListTeams(ctx context.Context, orgSlug string, pVars *Paginatio
 	return response.Results, parsePageFromURL(response.Next), nil
 }
 
+// GetTeam return team details.
 func (c *Client) GetTeam(ctx context.Context, orgSlug, teamId string) (*Team, error) {
 	var response Team
 
@@ -175,6 +180,7 @@ func (c *Client) GetTeam(ctx context.Context, orgSlug, teamId string) (*Team, er
 	return &response, nil
 }
 
+// ListTeamMembers return team members.
 func (c *Client) ListTeamMembers(ctx context.Context, orgSlug, teamSlug string, pVars *PaginationVars) ([]User, string, error) {
 	var response ListResponse[User]
 
@@ -193,6 +199,7 @@ func (c *Client) ListTeamMembers(ctx context.Context, orgSlug, teamSlug string, 
 	return response.Results, parsePageFromURL(response.Next), nil
 }
 
+// ListRepositories return repositories under the provided organization.
 func (c *Client) ListRepositories(ctx context.Context, orgSlug string, pVars *PaginationVars) ([]Repository, string, error) {
 	var response ListResponse[Repository]
 
@@ -211,6 +218,7 @@ func (c *Client) ListRepositories(ctx context.Context, orgSlug string, pVars *Pa
 	return response.Results, parsePageFromURL(response.Next), nil
 }
 
+// ListTeamPermissions return team permissions on provided repository.
 func (c *Client) ListRepositoryPermissions(ctx context.Context, orgSlug, repoSlug string, pVars *PaginationVars) ([]RepositoryPermission, string, error) {
 	var response ListResponse[RepositoryPermission]
 

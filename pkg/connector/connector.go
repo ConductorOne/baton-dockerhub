@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/conductorone/baton-dockerhub/pkg/dockerhub"
@@ -18,23 +19,23 @@ type DockerHub struct {
 }
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
-func (d *DockerHub) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
+func (dh *DockerHub) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
-		orgBuilder(d.client, d.orgs),
-		repositoryBuilder(d.client),
-		userBuilder(d.client),
-		teamBuilder(d.client),
+		orgBuilder(dh.client, dh.orgs),
+		repositoryBuilder(dh.client),
+		userBuilder(dh.client),
+		teamBuilder(dh.client),
 	}
 }
 
 // Asset takes an input AssetRef and attempts to fetch it using the connector's authenticated http client
 // It streams a response, always starting with a metadata object, following by chunked payloads for the asset.
-func (d *DockerHub) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.ReadCloser, error) {
+func (dh *DockerHub) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.ReadCloser, error) {
 	return "", nil, nil
 }
 
 // Metadata returns metadata about the connector.
-func (d *DockerHub) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
+func (dh *DockerHub) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "DockerHub",
 		Description: "Connector syncing DockerHub organization members their teams, and their roles to Baton",
@@ -43,7 +44,13 @@ func (d *DockerHub) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error)
 
 // Validate is called to ensure that the connector is properly configured. It should exercise any API credentials
 // to be sure that they are valid.
-func (d *DockerHub) Validate(ctx context.Context) (annotations.Annotations, error) {
+func (dh *DockerHub) Validate(ctx context.Context) (annotations.Annotations, error) {
+	// get the scope of used credentials
+	err := dh.client.GetCurrentUser(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("dockerhub-connector: failed to get current user: %w", err)
+	}
+
 	return nil, nil
 }
 

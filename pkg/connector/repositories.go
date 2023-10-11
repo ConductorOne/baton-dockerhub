@@ -136,14 +136,23 @@ func (r *repositoryResourceType) Grants(ctx context.Context, resource *v2.Resour
 			return nil, "", nil, fmt.Errorf("dockerhub-connector: failed to get team: %w", err)
 		}
 
-		rv = append(rv, grant.NewGrant(
+		g := grant.NewGrant(
 			resource,
 			perm.Permission,
 			&v2.ResourceId{
 				ResourceType: resourceTypeTeam.Id,
 				Resource:     fmt.Sprintf("%d", team.Id),
 			},
-		))
+			grant.WithAnnotation(
+				&v2.GrantExpandable{
+					EntitlementIds:  []string{fmt.Sprintf("team:%d:%s", team.Id, teamMembership)},
+					Shallow:         true,
+					ResourceTypeIds: []string{resourceTypeUser.Id},
+				},
+			),
+		)
+
+		rv = append(rv, g)
 	}
 
 	return rv, next, nil, nil

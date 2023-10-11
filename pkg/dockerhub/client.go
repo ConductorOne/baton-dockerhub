@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/conductorone/baton-dockerhub/pkg/dockerhub/external"
 	"google.golang.org/grpc/codes"
@@ -21,14 +20,23 @@ const (
 	OrgDetailEndpoint = OrgsEndpoint + "/%s"
 	UsersEndpoint     = OrgsEndpoint + "/%s/members"
 
-	TeamsEndpoint       = OrgsEndpoint + "/%s/groups"
-	TeamDetailEndpoint  = TeamsEndpoint + "/%s"
-	TeamMembersEndpoint = TeamDetailEndpoint + "/members"
+	CurrentUserEndpoint = "/v2/user"
+	UserEndpoint        = "/v2/users/%s"
+	UserOrgsEndpoint    = UserEndpoint + "/orgs"
+
+	TeamsEndpoint           = OrgsEndpoint + "/%s/groups"
+	TeamDetailEndpoint      = TeamsEndpoint + "/%s"
+	TeamMembersEndpoint     = TeamDetailEndpoint + "/members"
+	TeamPermissionsEndpoint = TeamDetailEndpoint + "/repositories"
+
+	RepositoriesEndpoint  = "/v2/repositories/%s"
+	RepositoryPermissions = RepositoriesEndpoint + "/%s/groups"
 )
 
 type Client struct {
-	httpClient *http.Client
-	baseUrl    *url.URL
+	httpClient  *http.Client
+	baseUrl     *url.URL
+	currentUser string
 
 	username     string
 	password     string
@@ -66,8 +74,8 @@ func (c *Client) composeURL(endpoint string, params ...interface{}) *url.URL {
 }
 
 type PaginationVars struct {
-	Size int
-	Page int
+	Size uint
+	Page string
 }
 
 type ListResponse[T any] struct {
@@ -75,13 +83,51 @@ type ListResponse[T any] struct {
 	Results []T `json:"results"`
 }
 
-func (c *Client) GetUsers(ctx context.Context, organization string, pVars *PaginationVars) ([]User, string, error) {
+func (c *Client) GetCurrentUser(ctx context.Context) error {
+	var response User
+
+	err := c.doRequest(
+		ctx,
+		http.MethodGet,
+		c.composeURL(CurrentUserEndpoint),
+		&response,
+		nil,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	c.currentUser = response.Username
+
+	return nil
+}
+
+func (c *Client) ListOrganizations(ctx context.Context, pVars *PaginationVars) ([]Organization, string, error) {
+	var response ListResponse[Organization]
+
+	err := c.doRequest(
+		ctx,
+		http.MethodGet,
+		c.composeURL(UserOrgsEndpoint, c.currentUser),
+		&response,
+		nil,
+		nil,
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return response.Results, parsePageFromURL(response.Next), nil
+}
+
+func (c *Client) ListUsers(ctx context.Context, orgSlug string, pVars *PaginationVars) ([]User, string, error) {
 	var response ListResponse[User]
 
 	err := c.doRequest(
 		ctx,
 		http.MethodGet,
-		c.composeURL(UsersEndpoint, organization),
+		c.composeURL(UsersEndpoint, orgSlug),
 		&response,
 		nil,
 		pVars,
@@ -90,34 +136,34 @@ func (c *Client) GetUsers(ctx context.Context, organization string, pVars *Pagin
 		return nil, "", err
 	}
 
-	return response.Results, response.Next, nil
+	return response.Results, parsePageFromURL(response.Next), nil
 }
 
-func (c *Client) GetTeams(ctx context.Context, organization string) ([]Team, error) {
+func (c *Client) ListTeams(ctx context.Context, orgSlug string, pVars *PaginationVars) ([]Team, string, error) {
 	var response ListResponse[Team]
 
 	err := c.doRequest(
 		ctx,
 		http.MethodGet,
-		c.composeURL(TeamsEndpoint, organization),
+		c.composeURL(TeamsEndpoint, orgSlug),
 		&response,
 		nil,
-		nil,
+		pVars,
 	)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return response.Results, nil
+	return response.Results, parsePageFromURL(response.Next), nil
 }
 
-func (c *Client) GetTeamMembers(ctx context.Context, organization, team string) ([]TeamMember, error) {
-	var response ListResponse[TeamMember]
+func (c *Client) GetTeam(ctx context.Context, orgSlug, teamId string) (*Team, error) {
+	var response Team
 
 	err := c.doRequest(
 		ctx,
 		http.MethodGet,
-		c.composeURL(TeamMembersEndpoint, organization, team),
+		c.composeURL(TeamDetailEndpoint, orgSlug, teamId),
 		&response,
 		nil,
 		nil,
@@ -126,7 +172,61 @@ func (c *Client) GetTeamMembers(ctx context.Context, organization, team string) 
 		return nil, err
 	}
 
-	return response.Results, nil
+	return &response, nil
+}
+
+func (c *Client) ListTeamMembers(ctx context.Context, orgSlug, teamSlug string, pVars *PaginationVars) ([]User, string, error) {
+	var response ListResponse[User]
+
+	err := c.doRequest(
+		ctx,
+		http.MethodGet,
+		c.composeURL(TeamMembersEndpoint, orgSlug, teamSlug),
+		&response,
+		nil,
+		pVars,
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return response.Results, parsePageFromURL(response.Next), nil
+}
+
+func (c *Client) ListRepositories(ctx context.Context, orgSlug string, pVars *PaginationVars) ([]Repository, string, error) {
+	var response ListResponse[Repository]
+
+	err := c.doRequest(
+		ctx,
+		http.MethodGet,
+		c.composeURL(RepositoriesEndpoint, orgSlug),
+		&response,
+		nil,
+		pVars,
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return response.Results, parsePageFromURL(response.Next), nil
+}
+
+func (c *Client) ListRepositoryPermissions(ctx context.Context, orgSlug, repoSlug string, pVars *PaginationVars) ([]RepositoryPermission, string, error) {
+	var response ListResponse[RepositoryPermission]
+
+	err := c.doRequest(
+		ctx,
+		http.MethodGet,
+		c.composeURL(RepositoryPermissions, orgSlug, repoSlug),
+		&response,
+		nil,
+		pVars,
+	)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return response.Results, parsePageFromURL(response.Next), nil
 }
 
 func setupPagination(query *url.Values, paginationVars *PaginationVars) {
@@ -136,12 +236,12 @@ func setupPagination(query *url.Values, paginationVars *PaginationVars) {
 
 	// add page size
 	if paginationVars.Size != 0 {
-		query.Set("page_size", strconv.Itoa(paginationVars.Size))
+		query.Set("page_size", fmt.Sprintf("%d", paginationVars.Size))
 	}
 
 	// add page
-	if paginationVars.Page != 0 {
-		query.Set("page", strconv.Itoa(paginationVars.Page))
+	if paginationVars.Page != "" {
+		query.Set("page", paginationVars.Page)
 	}
 }
 
@@ -199,4 +299,17 @@ func (c *Client) doRequest(
 	}
 
 	return nil
+}
+
+func parsePageFromURL(urlPayload string) string {
+	if urlPayload == "" {
+		return ""
+	}
+
+	u, err := url.Parse(urlPayload)
+	if err != nil {
+		return ""
+	}
+
+	return u.Query().Get("page")
 }

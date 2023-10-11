@@ -14,12 +14,16 @@ import (
 
 type DockerHub struct {
 	client *dockerhub.Client
+	orgs   []string
 }
 
 // ResourceSyncers returns a ResourceSyncer for each resource type that should be synced from the upstream service.
 func (d *DockerHub) ResourceSyncers(ctx context.Context) []connectorbuilder.ResourceSyncer {
 	return []connectorbuilder.ResourceSyncer{
+		orgBuilder(d.client, d.orgs),
+		repositoryBuilder(d.client),
 		userBuilder(d.client),
+		teamBuilder(d.client),
 	}
 }
 
@@ -44,7 +48,7 @@ func (d *DockerHub) Validate(ctx context.Context) (annotations.Annotations, erro
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, username, password string) (*DockerHub, error) {
+func New(ctx context.Context, username, password string, orgs []string) (*DockerHub, error) {
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
 	if err != nil {
 		return nil, err
@@ -55,7 +59,13 @@ func New(ctx context.Context, username, password string) (*DockerHub, error) {
 		return nil, err
 	}
 
+	err = hubClient.GetCurrentUser(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &DockerHub{
 		client: hubClient,
+		orgs:   orgs,
 	}, nil
 }

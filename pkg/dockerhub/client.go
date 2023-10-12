@@ -262,9 +262,9 @@ func (c *Client) doRequest(
 	paginationVars *PaginationVars,
 ) error {
 	var body []byte
+	var err error
 
 	if data != nil {
-		var err error
 		body, err = json.Marshal(data)
 		if err != nil {
 			return err

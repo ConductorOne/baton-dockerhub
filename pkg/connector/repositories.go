@@ -145,9 +145,7 @@ func (r *repositoryResourceType) Grants(ctx context.Context, resource *v2.Resour
 			},
 			grant.WithAnnotation(
 				&v2.GrantExpandable{
-					EntitlementIds:  []string{fmt.Sprintf("team:%d:%s", team.Id, teamMembership)},
-					Shallow:         true,
-					ResourceTypeIds: []string{resourceTypeUser.Id},
+					EntitlementIds: []string{fmt.Sprintf("team:%d:%s", team.Id, teamMembership)},
 				},
 			),
 		)

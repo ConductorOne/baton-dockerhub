@@ -38,7 +38,7 @@ func (dh *DockerHub) Asset(ctx context.Context, asset *v2.AssetRef) (string, io.
 func (dh *DockerHub) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error) {
 	return &v2.ConnectorMetadata{
 		DisplayName: "DockerHub",
-		Description: "Connector syncing DockerHub organization members their teams, and their roles to Baton",
+		Description: "Connector syncing DockerHub organizations, their members, teams, and repositories to Baton",
 	}, nil
 }
 
@@ -46,10 +46,7 @@ func (dh *DockerHub) Metadata(ctx context.Context) (*v2.ConnectorMetadata, error
 // to be sure that they are valid.
 func (dh *DockerHub) Validate(ctx context.Context) (annotations.Annotations, error) {
 	// get the scope of used credentials
-	_, _, err := dh.client.ListOrganizations(ctx, &dockerhub.PaginationVars{
-		Size: 1,
-		Page: "1",
-	})
+	_, _, err := dh.client.ListOrganizations(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("dockerhub-connector: failed to list organizations: %w", err)
 	}

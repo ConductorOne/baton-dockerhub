@@ -1,0 +1,18 @@
+## About This Package
+
+This package includes files copied from [Dockerhub Hub-tool](https://github.com/docker/hub-tool) at version `v0.4.5`.
+
+### [Unreleased]
+
+#### Added
+- Copied `store.go` from https://github.com/docker/hub-tool/blob/main/pkg/credentials/store.go.
+- Copied `main.go` from https://github.com/docker/hub-tool/blob/main/main.go
+
+#### Modified
+- Abstracted obtaining credentials from copied `main.go` into `GetCredentials` function
+- Added more descriptive error messages when obtaining credentials fails
+
+#### Fixed
+- Added periods to end of sentences in comments
+- Moved hardcoded values to constants
+- Added directive `nolint:gosec` to ignore linting errors in `store.go`

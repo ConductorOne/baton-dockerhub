@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !(linux && (amd64 || loong64))
+
 package libc // import "modernc.org/libc"
 
 import (
@@ -9,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"runtime/debug"
 	"sort"
@@ -436,7 +439,10 @@ func VaList(p uintptr, args ...interface{}) (r uintptr) {
 		case uintptr:
 			*(*uintptr)(unsafe.Pointer(p)) = x
 		default:
-			panic(todo("invalid VaList argument type: %T", x))
+			sz := reflect.TypeOf(v).Size()
+			copy(unsafe.Slice((*byte)(unsafe.Pointer(p)), sz), unsafe.Slice((*byte)(unsafe.Pointer((*[2]uintptr)(unsafe.Pointer(&v))[1])), sz))
+			p += roundup(sz, 8)
+			continue
 		}
 		p += 8
 	}
@@ -457,6 +463,18 @@ func NewVaListN(n int) (va_list uintptr) {
 // the va_list.
 func NewVaList(args ...interface{}) (va_list uintptr) {
 	return VaList(NewVaListN(len(args)), args...)
+}
+
+func VaOther(app *uintptr, sz uint64) (r uintptr) {
+	ap := *(*uintptr)(unsafe.Pointer(app))
+	if ap == 0 {
+		return 0
+	}
+
+	r = ap
+	ap = roundup(ap+uintptr(sz), 8)
+	*(*uintptr)(unsafe.Pointer(app)) = ap
+	return r
 }
 
 func VaInt32(app *uintptr) int32 {
@@ -583,6 +601,8 @@ func GoBytes(s uintptr, len int) []byte {
 
 	return (*RawMem)(unsafe.Pointer(s))[:len:len]
 }
+
+func Bool(v bool) bool { return v }
 
 func Bool32(b bool) int32 {
 	if b {

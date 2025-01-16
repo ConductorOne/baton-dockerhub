@@ -299,6 +299,7 @@ func (c *Client) doRequest(
 	defer rawResponse.Body.Close()
 
 	if rawResponse.StatusCode >= 300 {
+		//nolint:gosec // No risk of overflow because `Code` is a small enum.
 		return status.Error(codes.Code(rawResponse.StatusCode), "Request failed")
 	}
 

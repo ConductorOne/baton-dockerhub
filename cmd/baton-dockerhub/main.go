@@ -39,9 +39,10 @@ func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, e
 	l := ctxzap.Extract(ctx)
 
 	username := v.GetString(config.Username.FieldName)
-	password := v.GetString(config.Password.FieldName)
+	accessToken := v.GetString(config.AccessToken.FieldName)
 	orgs := v.GetStringSlice(config.Orgs.FieldName)
-	cb, err := connector.New(ctx, username, password, orgs)
+	password := v.GetString(config.Password.FieldName)
+	cb, err := connector.New(ctx, username, accessToken, password, orgs)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

@@ -10,7 +10,7 @@ Check out [Baton](https://github.com/conductorone/baton) to learn more about the
 
 # Prerequisites
 
-Among the prerequisities for running `baton-dockerhub` are prerequisities for running [hub-tool](https://github.com/docker/hub-tool#prerequisites) which is installed Docker on your machine and DockerHub account. You can use account username and password to authenticate in connector.
+Among the prerequisities for running `baton-dockerhub` are prerequisities for running [hub-tool](https://github.com/docker/hub-tool#prerequisites) which is installed Docker on your machine and DockerHub account. You can use account username and access token to authenticate in connector.
 
 # Getting Started
 
@@ -19,14 +19,14 @@ Among the prerequisities for running `baton-dockerhub` are prerequisities for ru
 ```
 brew install conductorone/baton/baton conductorone/baton/baton-dockerhub
 
-BATON_USERNAME=username BATON_PASSWORD=password baton-dockerhub
+BATON_USERNAME=username BATON_ACCESS_TOKEN=access-token baton-dockerhub
 baton resources
 ```
 
 ## docker
 
 ```
-docker run --rm -v $(pwd):/out -e BATON_USERNAME=username BATON_PASSWORD=password ghcr.io/conductorone/baton-dockerhub:latest -f "/out/sync.c1z"
+docker run --rm -v $(pwd):/out -e BATON_USERNAME=username BATON_ACCESS_TOKEN=access-token ghcr.io/conductorone/baton-dockerhub:latest -f "/out/sync.c1z"
 docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c1z" resources
 ```
 
@@ -36,7 +36,7 @@ docker run --rm -v $(pwd):/out ghcr.io/conductorone/baton:latest -f "/out/sync.c
 go install github.com/conductorone/baton/cmd/baton@main
 go install github.com/conductorone/baton-dockerhub/cmd/baton-dockerhub@main
 
-BATON_USERNAME=username BATON_PASSWORD=password baton-dockerhub
+BATON_USERNAME=username BATON_ACCESS_TOKEN=access-token baton-dockerhub
 baton resources
 ```
 
@@ -79,7 +79,7 @@ Flags:
       --log-format string      The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string       The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
       --orgs strings           Limit syncing to specific organizations by providing organization slugs. ($BATON_ORGS)
-      --password string        The DockerHub password used to connect to the DockerHub API. ($BATON_PASSWORD)
+      --access-token string    The DockerHub access token used to connect to the DockerHub API. ($BATON_ACCESS_TOKEN)
   -p, --provisioning           This must be set in order for provisioning actions to be enabled. ($BATON_PROVISIONING)
       --username string        The DockerHub username used to connect to the DockerHub API. ($BATON_USERNAME)
   -v, --version                version for baton-dockerhub

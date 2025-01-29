@@ -8,7 +8,6 @@ import (
 
 	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"go.uber.org/zap"
 )
 
 const (
@@ -56,8 +55,6 @@ type TokenResp struct {
 }
 
 func NewClient(ctx context.Context, username, password, accessToken string) (*Client, error) {
-	l := ctxzap.Extract(ctx)
-
 	base := &url.URL{
 		Scheme: "https",
 		Host:   BaseDomain,
@@ -105,8 +102,6 @@ func NewClient(ctx context.Context, username, password, accessToken string) (*Cl
 	}
 
 	defer resp.Body.Close()
-
-	l.Info("got token", zap.String("token", data.Token))
 
 	return &Client{
 		httpClient:   wrapper,

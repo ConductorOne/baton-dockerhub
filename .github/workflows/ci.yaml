@@ -40,8 +40,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      BATON_DOCKERHUB_USERNAME: ${{ secrets.BATON_DOCKERHUB_USERNAME }}
-      BATON_DOCKERHUB_PASSWORD: ${{ secrets.BATON_DOCKERHUB_PASSWORD }}
+      BATON_USERNAME: ${{ secrets.BATON_DOCKERHUB_USERNAME }}
+      BATON_PASSWORD: ${{ secrets.BATON_DOCKERHUB_PASSWORD }}
       BATON_LOG_LEVEL: debug
       CONNECTOR_GRANT: 'team:714395:member:user:c953f5c4c14447a0808fab51ac80b960'
       CONNECTOR_ENTITLEMENT: 'team:714395:member'

@@ -24,6 +24,9 @@ jobs:
         run: go build -o connector ./cmd/baton-dockerhub
 
       - name: Run and save output
+        env:
+          BATON_DOCKERHUB_USERNAME: ${{ secrets.BATON_DOCKERHUB_USERNAME }}
+          BATON_DOCKERHUB_PASSWORD: ${{ secrets.BATON_DOCKERHUB_PASSWORD }}
         run: ./connector capabilities > baton_capabilities.json
 
       - name: Commit changes

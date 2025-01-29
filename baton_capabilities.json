@@ -1,1 +1,56 @@
-{"resourceTypeCapabilities":[{"resourceType":{"id":"user","displayName":"User","traits":["TRAIT_USER"]},"capabilities":["CAPABILITY_SYNC"]}]}
+{
+  "@type": "type.googleapis.com/c1.connector.v2.ConnectorCapabilities",
+  "resourceTypeCapabilities": [
+    {
+      "resourceType": {
+        "id": "org",
+        "displayName": "Organization"
+      },
+      "capabilities": [
+        "CAPABILITY_SYNC"
+      ]
+    },
+    {
+      "resourceType": {
+        "id": "repository",
+        "displayName": "Repository"
+      },
+      "capabilities": [
+        "CAPABILITY_SYNC"
+      ]
+    },
+    {
+      "resourceType": {
+        "id": "team",
+        "displayName": "Team",
+        "traits": [
+          "TRAIT_GROUP"
+        ]
+      },
+      "capabilities": [
+        "CAPABILITY_SYNC"
+      ]
+    },
+    {
+      "resourceType": {
+        "id": "user",
+        "displayName": "User",
+        "traits": [
+          "TRAIT_USER"
+        ],
+        "annotations": [
+          {
+            "@type": "type.googleapis.com/c1.connector.v2.SkipEntitlementsAndGrants"
+          }
+        ]
+      },
+      "capabilities": [
+        "CAPABILITY_SYNC"
+      ]
+    }
+  ],
+  "connectorCapabilities": [
+    "CAPABILITY_SYNC"
+  ],
+  "credentialDetails": {}
+}

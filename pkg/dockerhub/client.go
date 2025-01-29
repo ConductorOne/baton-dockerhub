@@ -1,20 +1,19 @@
 package dockerhub
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 
-	"github.com/conductorone/baton-dockerhub/pkg/dockerhub/external"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/conductorone/baton-sdk/pkg/uhttp"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 )
 
 const (
 	BaseDomain = "hub.docker.com"
+
+	LoginEndpoint = "/v2/users/login"
 
 	OrgsEndpoint      = "/v2/orgs"
 	OrgDetailEndpoint = OrgsEndpoint + "/%s"
@@ -34,34 +33,84 @@ const (
 )
 
 type Client struct {
-	httpClient  *http.Client
+	httpClient  *uhttp.BaseHttpClient
 	baseUrl     *url.URL
 	currentUser string
 
 	username     string
+	accessToken  string
 	password     string
 	token        string
 	refreshToken string
 }
 
-func NewClient(ctx context.Context, httpClient *http.Client, username, password string) (*Client, error) {
-	token, refreshToken, err := external.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
+type CredentialsReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
+type TokenResp struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func NewClient(ctx context.Context, username, password, accessToken string) (*Client, error) {
 	base := &url.URL{
 		Scheme: "https",
 		Host:   BaseDomain,
 	}
 
+	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
+	if err != nil {
+		return nil, err
+	}
+
+	wrapper, err := uhttp.NewBaseHttpClientWithContext(ctx, httpClient)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use username + password/accesstoken to get an auth token and refresh token
+	credentials := CredentialsReq{
+		Username: username,
+		Password: password,
+	}
+	if password == "" {
+		credentials.Password = accessToken
+	}
+
+	reqOptions := []uhttp.RequestOption{
+		uhttp.WithContentType("application/json"),
+		uhttp.WithAccept("application/json"),
+		uhttp.WithJSONBody(credentials),
+	}
+
+	urlAddress := base.ResolveReference(&url.URL{Path: LoginEndpoint})
+
+	req, err := wrapper.NewRequest(ctx, http.MethodGet, urlAddress, reqOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	data := &TokenResp{}
+	doOptions := []uhttp.DoOption{
+		uhttp.WithJSONResponse(data),
+	}
+	resp, err := wrapper.Do(req, doOptions...)
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
 	return &Client{
-		httpClient:   httpClient,
+		httpClient:   wrapper,
 		baseUrl:      base,
 		username:     username,
+		accessToken:  accessToken,
 		password:     password,
-		token:        token,
-		refreshToken: refreshToken,
+		token:        data.Token,
+		refreshToken: data.RefreshToken,
 	}, nil
 }
 
@@ -84,22 +133,8 @@ type ListResponse[T any] struct {
 }
 
 // SetCurrentUser sets the current user for the client.
-func (c *Client) SetCurrentUser(ctx context.Context) error {
-	var response User
-
-	err := c.doRequest(
-		ctx,
-		http.MethodGet,
-		c.composeURL(CurrentUserEndpoint),
-		&response,
-		nil,
-		nil,
-	)
-	if err != nil {
-		return err
-	}
-
-	c.currentUser = response.Username
+func (c *Client) SetCurrentUser(ctx context.Context, username string) error {
+	c.currentUser = username
 
 	return nil
 }
@@ -237,20 +272,24 @@ func (c *Client) ListRepositoryPermissions(ctx context.Context, orgSlug, repoSlu
 	return response.Results, parsePageFromURL(response.Next), nil
 }
 
-func setupPagination(query *url.Values, paginationVars *PaginationVars) {
+func setupPagination(ctx context.Context, addr *url.URL, paginationVars *PaginationVars) *url.Values {
 	if paginationVars == nil {
-		return
+		return nil
 	}
+
+	q := addr.Query()
 
 	// add page size
 	if paginationVars.Size != 0 {
-		query.Set("page_size", fmt.Sprintf("%d", paginationVars.Size))
+		q.Set("page_size", fmt.Sprintf("%d", paginationVars.Size))
 	}
 
 	// add page
 	if paginationVars.Page != "" {
-		query.Set("page", paginationVars.Page)
+		q.Set("page", paginationVars.Page)
 	}
+
+	return &q
 }
 
 func (c *Client) doRequest(
@@ -261,50 +300,39 @@ func (c *Client) doRequest(
 	data interface{},
 	paginationVars *PaginationVars,
 ) error {
-	var body []byte
 	var err error
 
+	reqOptions := []uhttp.RequestOption{
+		uhttp.WithContentType("application/json"),
+		uhttp.WithAccept("application/json"),
+		uhttp.WithBearerToken(c.token),
+	}
+
 	if data != nil {
-		body, err = json.Marshal(data)
-		if err != nil {
-			return err
-		}
+		reqOptions = append(reqOptions, uhttp.WithJSONBody(data))
 	}
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		urlAddress.String(),
-		bytes.NewReader(body),
-	)
-	if err != nil {
-		return err
-	}
-
-	q := url.Values{}
-	setupPagination(&q, paginationVars)
+	q := setupPagination(ctx, urlAddress, paginationVars)
 	if q != nil {
-		req.URL.RawQuery = q.Encode()
+		urlAddress.RawQuery = q.Encode()
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
-
-	rawResponse, err := c.httpClient.Do(req)
+	req, err := c.httpClient.NewRequest(ctx, method, urlAddress, reqOptions...)
 	if err != nil {
 		return err
 	}
 
-	defer rawResponse.Body.Close()
-
-	if rawResponse.StatusCode >= 300 {
-		return status.Error(codes.Code(rawResponse.StatusCode), "Request failed")
+	doOptions := []uhttp.DoOption{}
+	if response != nil {
+		doOptions = append(doOptions, uhttp.WithJSONResponse(response))
 	}
 
-	if err := json.NewDecoder(rawResponse.Body).Decode(&response); err != nil {
+	resp, err := c.httpClient.Do(req, doOptions...)
+	if err != nil {
 		return err
 	}
+
+	defer resp.Body.Close()
 
 	return nil
 }

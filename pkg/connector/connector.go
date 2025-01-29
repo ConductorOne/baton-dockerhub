@@ -9,8 +9,8 @@ import (
 	v2 "github.com/conductorone/baton-sdk/pb/c1/connector/v2"
 	"github.com/conductorone/baton-sdk/pkg/annotations"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
-	"github.com/conductorone/baton-sdk/pkg/uhttp"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 type DockerHub struct {
@@ -48,26 +48,25 @@ func (dh *DockerHub) Validate(ctx context.Context) (annotations.Annotations, err
 	// get the scope of used credentials
 	_, _, err := dh.client.ListOrganizations(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("dockerhub-connector: failed to list organizations: %w", err)
+		return nil, fmt.Errorf("dockerhub-connector: validate: failed to list organizations: %w", err)
 	}
 
 	return nil, nil
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, username, password string, orgs []string) (*DockerHub, error) {
-	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))
+func New(ctx context.Context, username, accessToken, password string, orgs []string) (*DockerHub, error) {
+	l := ctxzap.Extract(ctx)
+	l.Debug("creating client")
+	hubClient, err := dockerhub.NewClient(ctx, username, password, accessToken)
 	if err != nil {
+		l.Error("error creating client", zap.Error(err))
 		return nil, err
 	}
 
-	hubClient, err := dockerhub.NewClient(ctx, httpClient, username, password)
+	err = hubClient.SetCurrentUser(ctx, username)
 	if err != nil {
-		return nil, err
-	}
-
-	err = hubClient.SetCurrentUser(ctx)
-	if err != nil {
+		l.Error("error setting current user", zap.Error(err))
 		return nil, err
 	}
 

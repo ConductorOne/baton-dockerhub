@@ -72,6 +72,7 @@ Available Commands:
   help               Help about any command
 
 Flags:
+      --access-token string    The DockerHub Personal Access Token used to connect to the DockerHub API. ($BATON_ACCESS_TOKEN)
       --client-id string       The client ID used to authenticate with ConductorOne ($BATON_CLIENT_ID)
       --client-secret string   The client secret used to authenticate with ConductorOne ($BATON_CLIENT_SECRET)
   -f, --file string            The path to the c1z file to sync with ($BATON_FILE) (default "sync.c1z")
@@ -79,9 +80,11 @@ Flags:
       --log-format string      The output format for logs: json, console ($BATON_LOG_FORMAT) (default "json")
       --log-level string       The log level: debug, info, warn, error ($BATON_LOG_LEVEL) (default "info")
       --orgs strings           Limit syncing to specific organizations by providing organization slugs. ($BATON_ORGS)
-      --access-token string    The DockerHub access token used to connect to the DockerHub API. ($BATON_ACCESS_TOKEN)
-  -p, --provisioning           This must be set in order for provisioning actions to be enabled. ($BATON_PROVISIONING)
-      --username string        The DockerHub username used to connect to the DockerHub API. ($BATON_USERNAME)
+      --password string        The DockerHub password used to connect to the DockerHub API. ($BATON_PASSWORD)
+  -p, --provisioning           This must be set in order for provisioning actions to be enabled ($BATON_PROVISIONING)
+      --skip-full-sync         This must be set to skip a full sync ($BATON_SKIP_FULL_SYNC)
+      --ticketing              This must be set to enable ticketing support ($BATON_TICKETING)
+      --username string        required: The DockerHub username used to connect to the DockerHub API. ($BATON_USERNAME)
   -v, --version                version for baton-dockerhub
 
 Use "baton-dockerhub [command] --help" for more information about a command.

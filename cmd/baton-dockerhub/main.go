@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/conductorone/baton-dockerhub/pkg/config"
+	"github.com/conductorone/baton-dockerhub/pkg/connector"
 	configschema "github.com/conductorone/baton-sdk/pkg/config"
 	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
+	"github.com/conductorone/baton-sdk/pkg/connectorrunner"
 	"github.com/conductorone/baton-sdk/pkg/types"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
-
-	"github.com/conductorone/baton-dockerhub/pkg/config"
-	"github.com/conductorone/baton-dockerhub/pkg/connector"
 )
 
 var version = "dev"
@@ -21,7 +21,9 @@ var version = "dev"
 func main() {
 	ctx := context.Background()
 
-	_, cmd, err := configschema.DefineConfiguration(ctx, "baton-dockerhub", getConnector, config.Configuration)
+	_, cmd, err := configschema.DefineConfiguration(ctx, "baton-dockerhub", getConnector, config.Configuration,
+		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connector.DockerHub{}),
+	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)

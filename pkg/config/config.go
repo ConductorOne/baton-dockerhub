@@ -21,4 +21,4 @@ var Configuration = field.NewConfiguration([]field.SchemaField{
 	AccessToken,
 	Password,
 	Orgs,
-}, constraints...)
+}, field.WithConstraints(constraints...))

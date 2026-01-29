@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	configschema "github.com/conductorone/baton-sdk/pkg/config"
-	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
-	"github.com/conductorone/baton-sdk/pkg/types"
-	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
-
 	"github.com/conductorone/baton-dockerhub/pkg/config"
 	"github.com/conductorone/baton-dockerhub/pkg/connector"
+	configschema "github.com/conductorone/baton-sdk/pkg/config"
+	"github.com/conductorone/baton-sdk/pkg/connectorbuilder"
+	"github.com/conductorone/baton-sdk/pkg/connectorrunner"
+	"github.com/conductorone/baton-sdk/pkg/types"
+	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap/ctxzap"
+	"go.uber.org/zap"
 )
 
 var version = "dev"
@@ -21,7 +20,13 @@ var version = "dev"
 func main() {
 	ctx := context.Background()
 
-	_, cmd, err := configschema.DefineConfiguration(ctx, "baton-dockerhub", getConnector, config.Configuration)
+	_, cmd, err := configschema.DefineConfiguration(
+		ctx,
+		"baton-dockerhub",
+		getConnector,
+		config.Configuration,
+		connectorrunner.WithDefaultCapabilitiesConnectorBuilder(&connector.DockerHub{}),
+	)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
@@ -35,14 +40,13 @@ func main() {
 	}
 }
 
-func getConnector(ctx context.Context, v *viper.Viper) (types.ConnectorServer, error) {
+func getConnector(ctx context.Context, cfg *config.Dockerhub) (types.ConnectorServer, error) {
 	l := ctxzap.Extract(ctx)
+	if err := config.ValidateConfig(cfg); err != nil {
+		return nil, err
+	}
 
-	username := v.GetString(config.Username.FieldName)
-	accessToken := v.GetString(config.AccessToken.FieldName)
-	orgs := v.GetStringSlice(config.Orgs.FieldName)
-	password := v.GetString(config.Password.FieldName)
-	cb, err := connector.New(ctx, username, accessToken, password, orgs)
+	cb, err := connector.New(ctx, cfg.Username, cfg.AccessToken, cfg.Password, cfg.Orgs)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

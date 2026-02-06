@@ -3,7 +3,7 @@ module github.com/conductorone/baton-dockerhub
 go 1.25.2
 
 require (
-	github.com/conductorone/baton-sdk v0.7.14
+	github.com/conductorone/baton-sdk v0.7.16
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	go.uber.org/zap v1.27.1
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c

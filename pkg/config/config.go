@@ -28,6 +28,11 @@ var (
 		field.WithDescription("Limit syncing to specific organizations by providing organization slugs."),
 		field.WithDisplayName("Organizations"),
 	)
+	BaseURL = field.StringField(
+		"base-url",
+		field.WithDescription("Override the DockerHub API URL (for testing)"),
+		field.WithDisplayName("Base URL"),
+	)
 
 	// FieldRelationships defines relationships between the fields.
 	FieldRelationships = []field.SchemaFieldRelationship{
@@ -42,6 +47,7 @@ var Configuration = field.NewConfiguration([]field.SchemaField{
 	AccessToken,
 	Password,
 	Orgs,
+	BaseURL,
 }, field.WithConstraints(FieldRelationships...))
 
 // ValidateConfig is run after the configuration is loaded, and should return an

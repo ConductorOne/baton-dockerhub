@@ -54,10 +54,17 @@ type TokenResp struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func NewClient(ctx context.Context, username, password, accessToken string) (*Client, error) {
+func NewClient(ctx context.Context, username, password, accessToken, baseURL string) (*Client, error) {
 	base := &url.URL{
 		Scheme: "https",
 		Host:   BaseDomain,
+	}
+	if baseURL != "" {
+		var err error
+		base, err = url.Parse(baseURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid base URL: %w", err)
+		}
 	}
 
 	httpClient, err := uhttp.NewClient(ctx, uhttp.WithLogger(true, ctxzap.Extract(ctx)))

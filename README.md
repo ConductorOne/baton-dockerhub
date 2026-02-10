@@ -1,8 +1,8 @@
 ![Baton Logo](./docs/images/baton-logo.png)
 
-# `baton-dockerhub` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-dockerhub.svg)](https://pkg.go.dev/github.com/conductorone/baton-dockerhub) ![main ci](https://github.com/conductorone/baton-dockerhub/actions/workflows/main.yaml/badge.svg)
+# `baton-dockerhub` [![Go Reference](https://pkg.go.dev/badge/github.com/conductorone/baton-dockerhub.svg)](https://pkg.go.dev/github.com/conductorone/baton-dockerhub) ![ci](https://github.com/conductorone/baton-dockerhub/actions/workflows/ci.yaml/badge.svg) ![verify](https://github.com/conductorone/baton-dockerhub/actions/workflows/verify.yaml/badge.svg)
 
-`baton-dockerhub` is a connector for DockerHub built using the [Baton SDK](https://github.com/conductorone/baton-sdk). It communicates with the DockerHub API to sync data about organizations, teams, users and repositories. 
+`baton-dockerhub` is a connector for DockerHub built using the [Baton SDK](https://github.com/conductorone/baton-sdk). It communicates with the DockerHub API to sync data about organizations, teams, users and repositories.
 
 To make connection with the DockerHub user provisioning API, we used mechanism for obtaining credentials from docker CLI tool [hub-tool](https://github.com/docker/hub-tool), you can find used code and changes done on it in [folder external](./pkg/dockerhub/external/).
 

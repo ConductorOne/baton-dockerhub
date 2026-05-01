@@ -8,6 +8,7 @@ type Dockerhub struct {
 	AccessToken string `mapstructure:"access-token"`
 	Password string `mapstructure:"password"`
 	Orgs []string `mapstructure:"orgs"`
+	BaseUrl string `mapstructure:"base-url"`
 }
 
 func (c *Dockerhub) findFieldByTag(tagValue string) (any, bool) {

@@ -46,7 +46,7 @@ func getConnector(ctx context.Context, cfg *config.Dockerhub) (types.ConnectorSe
 		return nil, err
 	}
 
-	cb, err := connector.New(ctx, cfg.Username, cfg.AccessToken, cfg.Password, cfg.Orgs)
+	cb, err := connector.New(ctx, cfg.Username, cfg.AccessToken, cfg.Password, cfg.Orgs, cfg.BaseUrl)
 	if err != nil {
 		l.Error("error creating connector", zap.Error(err))
 		return nil, err

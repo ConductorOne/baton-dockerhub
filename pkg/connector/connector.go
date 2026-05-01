@@ -55,10 +55,10 @@ func (dh *DockerHub) Validate(ctx context.Context) (annotations.Annotations, err
 }
 
 // New returns a new instance of the connector.
-func New(ctx context.Context, username, accessToken, password string, orgs []string) (*DockerHub, error) {
+func New(ctx context.Context, username, accessToken, password string, orgs []string, baseURL string) (*DockerHub, error) {
 	l := ctxzap.Extract(ctx)
 	l.Debug("creating client")
-	hubClient, err := dockerhub.NewClient(ctx, username, password, accessToken)
+	hubClient, err := dockerhub.NewClient(ctx, username, password, accessToken, baseURL)
 	if err != nil {
 		l.Error("error creating client", zap.Error(err))
 		return nil, err

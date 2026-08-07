@@ -31,8 +31,6 @@ func userResource(ctx context.Context, user *dockerhub.User, parentId *v2.Resour
 	}
 
 	userTraitOptions := []rs.UserTraitOption{
-		rs.WithUserProfile(profile),
-		rs.WithStatus(v2.UserTrait_Status_STATUS_ENABLED),
 		rs.WithEmail(user.Email, true),
 	}
 
@@ -41,6 +39,8 @@ func userResource(ctx context.Context, user *dockerhub.User, parentId *v2.Resour
 		resourceTypeUser,
 		user.Id,
 		userTraitOptions,
+		rs.WithResourceProfile(profile),
+		rs.WithResourceStatus(v2.Status_RESOURCE_STATUS_ENABLED, ""),
 		rs.WithParentResourceID(parentId),
 	)
 

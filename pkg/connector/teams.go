@@ -33,15 +33,14 @@ func teamResource(ctx context.Context, team *dockerhub.Team, parentId *v2.Resour
 		"team_name": team.Name,
 	}
 
-	teamTraitOptions := []rs.GroupTraitOption{
-		rs.WithGroupProfile(profile),
-	}
+	teamTraitOptions := []rs.GroupTraitOption{}
 
 	resource, err := rs.NewGroupResource(
 		team.Name,
 		resourceTypeTeam,
 		team.Id,
 		teamTraitOptions,
+		rs.WithResourceProfile(profile),
 		rs.WithParentResourceID(parentId),
 		rs.WithDescription(team.Description),
 	)
@@ -117,12 +116,7 @@ func (t *teamResourceType) Entitlements(_ context.Context, resource *v2.Resource
 
 // Grants returns a slice of grants for each member that team contain.
 func (t *teamResourceType) Grants(ctx context.Context, resource *v2.Resource, pToken *pagination.Token) ([]*v2.Grant, string, annotations.Annotations, error) {
-	teamGroupTrait, err := rs.GetGroupTrait(resource)
-	if err != nil {
-		return nil, "", nil, err
-	}
-
-	teamSlug, ok := rs.GetProfileStringValue(teamGroupTrait.Profile, "team_name")
+	teamSlug, ok := rs.GetProfileStringValue(rs.GetProfile(resource), "team_name")
 	if !ok {
 		return nil, "", nil, fmt.Errorf("dockerhub-connector: failed to get team name from profile")
 	}

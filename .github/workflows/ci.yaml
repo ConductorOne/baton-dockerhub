@@ -28,7 +28,7 @@ jobs:
       - name: Run baton-dockerhub
         run: ./baton-dockerhub
       - name: Install baton
-        run: ./scripts/get-baton.sh && mv baton /usr/local/bin
+        uses: ConductorOne/github-workflows/actions/get-baton@v4
       - name: Sync and check resource/grant
         env:
           BATON_CONNECTOR: ./baton-dockerhub

@@ -3,6 +3,7 @@ package connector
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/conductorone/baton-dockerhub/pkg/dockerhub"
@@ -12,7 +13,6 @@ import (
 	ent "github.com/conductorone/baton-sdk/pkg/types/entitlement"
 	"github.com/conductorone/baton-sdk/pkg/types/grant"
 	rs "github.com/conductorone/baton-sdk/pkg/types/resource"
-	"golang.org/x/exp/slices"
 )
 
 const (

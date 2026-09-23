@@ -1,0 +1,447 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Docker Hub API (baton-dockerhub connector surface)",
+    "version": "1.0.0",
+    "description": "Describes only the Docker Hub endpoints baton-dockerhub calls. Scope is derived from pkg/dockerhub/client.go; response shapes are derived from the structs in pkg/dockerhub/models.go and settled against Docker's published OpenAPI document at https://docs.docker.com/reference/api/hub/latest.yaml (accessed 2026-09-23).\n\nOnly the fields the connector's structs declare are modelled. Docker's document describes many more properties per resource; the omissions here are deliberate — spec scope is connector scope.\n\nAuth: the client exchanges a username plus a password or personal access token for a JWT at /v2/users/login during NewClient, then sends that JWT as `Authorization: Bearer` on every subsequent request (pkg/dockerhub/client.go doRequest). The refresh token returned by login is stored but never used.\n\nPagination: Docker returns `count` and an absolute `next` URL. The client extracts only the `page` query parameter from that URL (parsePageFromURL) and replays it as `page`, alongside `page_size`, on the next call; an empty `next` terminates the loop. Two operations are called with nil pagination vars and therefore send neither parameter — see their descriptions.\n\nBase URL: https://hub.docker.com by default, overridable via the connector's base URL config."
+  },
+  "servers": [
+    { "url": "https://hub.docker.com", "description": "Docker Hub API. Default; overridable via the connector's base-url config." }
+  ],
+  "security": [{ "bearerAuth": [] }],
+  "tags": [
+    { "name": "authentication", "description": "Token exchange performed once at client construction." },
+    { "name": "orgs", "description": "Organizations and their members." },
+    { "name": "groups", "description": "Organization groups — the connector's teams." },
+    { "name": "repositories", "description": "Repositories and the group permissions granted on them." }
+  ],
+  "paths": {
+    "/v2/users/login": {
+      "post": {
+        "operationId": "loginUser",
+        "tags": ["authentication"],
+        "summary": "Exchange credentials for a bearer token",
+        "description": "Called once from NewClient (pkg/dockerhub/client.go) to obtain the JWT used by every other operation. The client sends `password` if configured, otherwise the configured access token, in the same `password` field.\n\nTwo deviations from Docker's published document, both recorded as written rather than corrected:\n\n1. The client issues this request with `http.MethodGet`, not POST, while still attaching the JSON body. Docker documents POST only. The connector works in production against this route, so the GET is real behaviour, but it is unproven whether Docker treats the verb as significant here.\n2. Docker marks this route deprecated in favour of `POST /v2/auth/token`. The connector has not migrated.\n\nThe route is modelled here under `post` because that is the documented verb; see `x-connector-method` for what the client actually sends.",
+        "externalDocs": { "url": "https://docs.docker.com/reference/api/hub/latest/#tag/authentication-api/operation/PostUsersLogin" },
+        "x-connector-method": "GET",
+        "x-connector-deviation": "Client uses GET with a JSON body; Docker documents POST. Also: Docker deprecates this route in favour of POST /v2/auth/token.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication succeeded.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/TokenResponse" }
+              }
+            }
+          },
+          "401": { "description": "Authentication failed, or a second factor is required. The client surfaces this as a client-construction error." }
+        }
+      }
+    },
+    "/v2/users/{username}/orgs": {
+      "get": {
+        "operationId": "listUserOrganizations",
+        "tags": ["orgs"],
+        "summary": "List the organizations the authenticated user belongs to",
+        "description": "Drives organization discovery (pkg/connector/organizations.go:68) and doubles as the connector's credential-validation probe (pkg/connector/connector.go:49). `username` is the configured username, set once via SetCurrentUser.\n\nThis route is not present in Docker's published OpenAPI document; its shape is proven only by the connector's structs and the envelope every other Docker Hub list route uses. Treat the field list as inferred.\n\nThe client passes nil pagination vars for this operation regardless of what the caller supplies, so neither `page` nor `page_size` is ever sent — but the `next` link is still parsed and returned as the connector's page token. Pagination past page one is therefore unreachable here.",
+        "x-connector-evidence": "client code only — route absent from Docker's published spec",
+        "parameters": [
+          { "$ref": "#/components/parameters/Username" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated organizations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginationEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Organization" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/orgs/{org_name}/members": {
+      "get": {
+        "operationId": "listOrgMembers",
+        "tags": ["orgs"],
+        "summary": "List members of an organization",
+        "description": "Source of the connector's user resources (pkg/connector/users.go:71) and of the organization membership and role grants (pkg/connector/organizations.go:129).\n\n`id` is the member's trimmed UUID and is the connector's user resource ID — parity-critical. `role` drives organization role entitlements.",
+        "externalDocs": { "url": "https://docs.docker.com/reference/api/hub/latest/#tag/orgs/operation/getV2OrgsByOrgNameMembers" },
+        "parameters": [
+          { "$ref": "#/components/parameters/OrgName" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated organization members.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginationEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/User" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/orgs/{org_name}/groups": {
+      "get": {
+        "operationId": "listOrgGroups",
+        "tags": ["groups"],
+        "summary": "List the groups (teams) of an organization",
+        "description": "Source of the connector's team resources (pkg/connector/teams.go:72). The connector models Docker groups as teams.\n\n`id` is the numeric group ID and is the connector's team resource ID — parity-critical. Docker types it as `number`; the connector decodes it into a Go `int`.",
+        "externalDocs": { "url": "https://docs.docker.com/reference/api/hub/latest/#tag/groups/operation/getV2OrgsByOrgNameGroups" },
+        "parameters": [
+          { "$ref": "#/components/parameters/OrgName" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated organization groups.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginationEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Team" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/orgs/{org_name}/groups/{group_name}": {
+      "get": {
+        "operationId": "getOrgGroup",
+        "tags": ["groups"],
+        "summary": "Get a single group (team) by name",
+        "description": "Called per repository permission to resolve a group name back to its numeric ID, because the repository-groups route returns both but the connector builds grants from the ID (pkg/connector/repositories.go:134).\n\nThe path parameter is the group *name*, not the ID — the client passes `RepositoryPermission.TeamName` into a constant whose Go identifier says `teamId`. The name is what Docker expects, so the behaviour is correct and only the identifier is misleading.\n\nCalled with nil pagination vars; this route takes no pagination parameters.",
+        "externalDocs": { "url": "https://docs.docker.com/reference/api/hub/latest/#tag/groups/operation/getV2OrgsByOrgNameGroupsByGroupName" },
+        "parameters": [
+          { "$ref": "#/components/parameters/OrgName" },
+          { "$ref": "#/components/parameters/GroupName" }
+        ],
+        "responses": {
+          "200": {
+            "description": "The group.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Team" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/orgs/{org_name}/groups/{group_name}/members": {
+      "get": {
+        "operationId": "listOrgGroupMembers",
+        "tags": ["groups"],
+        "summary": "List the members of a group (team)",
+        "description": "Source of team membership grants (pkg/connector/teams.go:135). The client passes the team *name*, read from the team resource's `team_name` profile value, as `group_name`.\n\nDocker's `group_member` schema does not carry `role`; the connector decodes this response into the same `User` struct it uses for organization members, so `role` is simply absent here. `email` is returned only to callers with elevated organization permissions.",
+        "externalDocs": { "url": "https://docs.docker.com/reference/api/hub/latest/#tag/groups/operation/getV2OrgsByOrgNameGroupsByGroupNameMembers" },
+        "parameters": [
+          { "$ref": "#/components/parameters/OrgName" },
+          { "$ref": "#/components/parameters/GroupName" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated group members.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginationEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/GroupMember" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/repositories/{namespace}": {
+      "get": {
+        "operationId": "listNamespaceRepositories",
+        "tags": ["repositories"],
+        "summary": "List the repositories in a namespace",
+        "description": "Source of the connector's repository resources (pkg/connector/repositories.go:66). The namespace is the organization slug.\n\nDocker's published document exposes this listing at `GET /v2/namespaces/{namespace}/repositories`, not at this path. The connector calls the older `/v2/repositories/{namespace}` form, which remains live but is undocumented; the response shape below is proven by the connector's structs and the shared list envelope, not by Docker's document.\n\n`name` is the connector's repository resource ID, scoped by the parent organization — parity-critical.",
+        "x-connector-evidence": "client code only — Docker documents the equivalent listing at /v2/namespaces/{namespace}/repositories",
+        "parameters": [
+          { "$ref": "#/components/parameters/Namespace" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated repositories.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginationEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Repository" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/repositories/{namespace}/{repository}/groups": {
+      "get": {
+        "operationId": "listRepositoryGroups",
+        "tags": ["repositories"],
+        "summary": "List the group permissions granted on a repository",
+        "description": "Source of repository permission grants (pkg/connector/repositories.go:121). Each entry names a group and the permission it holds; the connector then resolves the group via getOrgGroup to build the grant.\n\nDocker's published document defines only `POST` on this path, for assigning a group to a repository. The `GET` the connector calls is undocumented, but the response element matches Docker's `RepositoryGroup` schema field for field, which is strong evidence for the item shape even though the operation itself is unproven.\n\n`permission` drives the repository entitlement and `group_name` is the join key back to the team — both parity-critical.",
+        "externalDocs": { "url": "https://docs.docker.com/reference/api/hub/latest/#tag/repositories/operation/CreateRepositoryGroup" },
+        "x-connector-evidence": "client code for the operation; Docker's RepositoryGroup schema for the item shape",
+        "parameters": [
+          { "$ref": "#/components/parameters/Namespace" },
+          { "$ref": "#/components/parameters/Repository" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated repository group permissions.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/PaginationEnvelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "results": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/RepositoryPermission" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "The JWT returned by loginUser, attached via uhttp.WithBearerToken."
+      }
+    },
+    "parameters": {
+      "Username": {
+        "name": "username",
+        "in": "path",
+        "required": true,
+        "description": "The configured Docker Hub username, set on the client by SetCurrentUser.",
+        "schema": { "type": "string" }
+      },
+      "OrgName": {
+        "name": "org_name",
+        "in": "path",
+        "required": true,
+        "description": "Organization slug. Comes from the organization resource ID.",
+        "schema": { "type": "string" }
+      },
+      "GroupName": {
+        "name": "group_name",
+        "in": "path",
+        "required": true,
+        "description": "Group (team) name, not its numeric ID.",
+        "schema": { "type": "string" }
+      },
+      "Namespace": {
+        "name": "namespace",
+        "in": "path",
+        "required": true,
+        "description": "Repository namespace. The connector always passes the organization slug.",
+        "schema": { "type": "string" }
+      },
+      "Repository": {
+        "name": "repository",
+        "in": "path",
+        "required": true,
+        "description": "Repository name within the namespace.",
+        "schema": { "type": "string" }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "description": "1-based page number. Sent only when the connector carries a page token; its value is the `page` query parameter lifted out of the previous response's `next` URL.",
+        "schema": { "type": "string" }
+      },
+      "PageSize": {
+        "name": "page_size",
+        "in": "query",
+        "required": false,
+        "description": "Items per page. The connector sends its configured resource page size.",
+        "schema": { "type": "integer" }
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "required": ["username", "password"],
+        "properties": {
+          "username": { "type": "string", "description": "Docker Hub username." },
+          "password": { "type": "string", "description": "Password, or the personal access token when no password is configured. The client puts both in this field." }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "description": "Bearer JWT used for every subsequent request." },
+          "refresh_token": { "type": "string", "description": "Stored on the client but never used — the connector does not refresh." }
+        }
+      },
+      "PaginationEnvelope": {
+        "type": "object",
+        "description": "Shared list envelope. The connector reads `count` and `next` only; `previous` is returned by Docker but not decoded.",
+        "properties": {
+          "count": { "type": "integer", "description": "Total matching items." },
+          "next": { "type": "string", "description": "Absolute URL of the next page, or empty when exhausted. Only its `page` query parameter is used." }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "description": "An organization the authenticated user belongs to. Shape inferred from the connector's struct; the source route is undocumented.",
+        "properties": {
+          "id": { "type": "string", "description": "Organization ID." },
+          "orgname": { "type": "string", "description": "Organization slug. Used as the connector's organization resource ID and as the `org_name` and `namespace` path parameter downstream — parity-critical." }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "An organization member. Only the properties the connector decodes are listed; Docker returns more.",
+        "properties": {
+          "id": { "type": "string", "description": "Trimmed UUID. The connector's user resource ID — parity-critical." },
+          "username": { "type": "string", "description": "Docker Hub username." },
+          "full_name": { "type": "string", "description": "Display name." },
+          "email": { "type": "string", "description": "Email address. Visible only to callers with sufficient organization permissions." },
+          "role": {
+            "type": "string",
+            "description": "Organization role. Drives the organization role entitlement.",
+            "enum": ["Owner", "Editor", "Member", "Invitee"]
+          }
+        }
+      },
+      "GroupMember": {
+        "type": "object",
+        "description": "A member of a group. Decoded into the same Go struct as User, but Docker's group-member payload carries no `role`.",
+        "properties": {
+          "id": { "type": "string", "description": "Trimmed UUID. Joins back to the user resource — parity-critical." },
+          "username": { "type": "string", "description": "Docker Hub username." },
+          "full_name": { "type": "string", "description": "Display name." },
+          "email": { "type": "string", "description": "Email address. Returned only to callers with elevated organization permissions." }
+        }
+      },
+      "Team": {
+        "type": "object",
+        "description": "An organization group, modelled by the connector as a team.",
+        "properties": {
+          "id": { "type": "integer", "description": "Numeric group ID. The connector's team resource ID — parity-critical." },
+          "name": { "type": "string", "description": "Group name. Stored on the team resource as `team_name` and used as the `group_name` path parameter." },
+          "description": { "type": "string", "description": "Group description." }
+        }
+      },
+      "Repository": {
+        "type": "object",
+        "description": "A repository in a namespace. Shape inferred from the connector's struct; the source route is undocumented.",
+        "properties": {
+          "name": { "type": "string", "description": "Repository name. The connector's repository resource ID within its parent organization — parity-critical." },
+          "namespace": { "type": "string", "description": "Owning namespace." },
+          "description": { "type": "string", "description": "Repository description." }
+        }
+      },
+      "RepositoryPermission": {
+        "type": "object",
+        "description": "A group's permission on a repository. Field for field identical to Docker's RepositoryGroup schema.",
+        "properties": {
+          "group_id": { "type": "integer", "format": "int64", "description": "Numeric group ID." },
+          "group_name": { "type": "string", "description": "Group name. The join key the connector feeds to getOrgGroup — parity-critical." },
+          "permission": {
+            "type": "string",
+            "description": "Permission level granted to the group. Drives the repository entitlement.",
+            "enum": ["read", "write", "admin"]
+          }
+        }
+      }
+    }
+  }
+}
